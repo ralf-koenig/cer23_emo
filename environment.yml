@@ -1,0 +1,12 @@
+name: emo
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scikit-learn
+  - ipykernel
+  - jupyter
+  - matplotlib
+  - seaborn
