@@ -185,6 +185,36 @@ def create_clustered_df(df):
     Returns:
     plutchik_df (pandas.Dataframe): The transformed data frame with emotions clustered on different levels
     '''
+    helper0 = df.copy()
+    helper1 = df.copy()
+    helper2 = df.copy()
+    helper3 = df.copy()
+    clustered_df = df.copy()
+
+    # First we write the 'level0' column, which shows the original emotion coded as a string value. 
+    # Mask() is applied on the whole helper dataframe, which is a copy of the original df.
+    for emotion in emotions:
+        helper0 = helper0.mask(helper0[emotion] == 1, emotion)
+        # Now copy the level0 column on the output df:
+        clustered_df['level0'] = helper0['text'] # it doesn't matter, which column, as it mapped the emotions on every column
+
+    # Now we do the same thing for level1 emotions, using the mapfunction defined above.
+    for emotion in emotions:
+        helper1 = helper1.mask(helper1[emotion] == 1, map_level1(emotion))
+        clustered_df['level1'] = helper1['text']
+    
+    # Now we do the same thing for level2 emotions, using the mapfunction defined above.
+    for emotion in emotions:
+        helper2 = helper2.mask(helper2[emotion] == 1, map_level2(emotion))
+        clustered_df['level2'] = helper2['text']
+
+    # Now we do the same thing for level3 emotions, using the mapfunction defined above.
+    for emotion in emotions:
+        helper3 = helper3.mask(helper3[emotion] == 1, map_level3(emotion))
+        clustered_df['level3'] = helper3['text']
+
+    # Now we drop all the original emotion columns:
+    clustered_df = clustered_df.drop(emotions, axis = 1)
     return clustered_df
 
 
@@ -210,7 +240,7 @@ def create_plutchik_df(df):
         # Now copy the level0 column on the output df:
         plutchik_df['level0'] = helper1['text'] # it doesn't matter, which column, as it mapped the emotions on every column
 
-    # Now we do the same thing for plutchi emotion, using the mapfunction defined above.
+    # Now we do the same thing for plutchik emotion, using the mapfunction defined above.
     for emotion in emotions:
         helper2 = helper2.mask(helper2[emotion] == 1, map_plutchik(emotion))
         # Now copy the plutchik column on the output df:
