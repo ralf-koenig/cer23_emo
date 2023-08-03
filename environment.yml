@@ -10,3 +10,12 @@ dependencies:
   - jupyter
   - matplotlib
   - seaborn
+  - evaluate
+  - datasets 
+  - huggingface_hub 
+  - ipywidgets
+  - 'transformers[torch]'
+  - transformers-4.28.1
+  - pytorch
+  - plotnine
+  - tqdm
