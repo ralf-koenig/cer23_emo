@@ -15,7 +15,7 @@ dependencies:
   - huggingface_hub 
   - ipywidgets
   - 'transformers[torch]'
-  - transformers-4.28.1
+  - transformers
   - pytorch
   - plotnine
   - tqdm
