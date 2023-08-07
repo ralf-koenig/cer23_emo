@@ -19,6 +19,21 @@ from tqdm import tqdm
 
 
 def get_bert(dataset, level, bert = "distilbert-base-uncased", models_dir = "../models/distilbert/", results_dir = "../results/distilbert/"):
+    '''
+    Returns the results for a chosen BERT-model.
+    
+    Parameters: 
+    dataset (dataframe): input data
+    level (string): cluster level of emotions that should be analyzed
+    bert (string): chosen BERT-model for training
+    models_dir (string): directory where the models are saved
+    results_dir (string): directory where the results are saved
+    
+    Returns:
+    dataset (dataframe): input data with mapped level
+    results (list): model results
+    tokenized_testing_data (Dataset): text in tensor form
+    '''
     if dataset == "clustered_df":
         if level == "level0":
             id2label = {0: 'sadness', 1: 'neutral', 2: 'love', 3: 'gratitude', 4: 'disapproval',
