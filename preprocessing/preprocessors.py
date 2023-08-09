@@ -41,37 +41,35 @@ def map_plutchik(emotion):
     new_emotion (string): corresponding Plutchik emotion
     '''
     if emotion in ["amusement", "excitement", "joy"]:
-        return "begeistert"
+        return "ecstasy"
     elif emotion in ["love", "desire"]:
-        return "verliebt"
+        return "love"
     elif emotion in ["admiration", "caring", "approval"]:
-        return "bewundernd"
-    elif emotion in ["gratitude"]:
-        return "ehrfürchtig"
+        return "admiration"
+    elif emotion in ["gratitude", "embarrassment"]:
+        return "awe"
     elif emotion in ["fear", "nervousness"]:
-        return "erschrocken"
-    elif emotion in ["embarassment"]:
-        return "ehrfürchtig"
+        return "terror"
     elif emotion in ["surprise", "confusion"]:
-        return "erstaunt"
+        return "amazement"
     elif emotion in ["disappointment"]:
-        return "enttäuscht"
+        return "disapproval"
     elif emotion in ["grief", "sadness"]:
-        return "betrübt"
+        return "grief"
     elif emotion in ["remorse"]:
-        return "bereuend"
+        return "remorse"
     elif emotion in ["disgust", "disapproval"]:
-        return "angewidert"
+        return "loathing"
     elif emotion in []:
-        return "hassend"
+        return "contempt"
     elif emotion in ["anger", "annoyance"]:
-        return "wütend"
+        return "rage"
     elif emotion in ["pride"]:
-        return "streitlustig"
+        return "aggressiveness"
     elif emotion in ["realization", "curiosity"]:
-        return "klar"
+        return "vigilance"
     elif emotion in ["optimism", "relief"]:
-        return "optimistisch"
+        return "optimism"
     else:
         return emotion # only "neutral"
 
@@ -101,7 +99,7 @@ def map_level1(emotion):
         return "cur_con"
     elif emotion in ["fear", "nervousness"]:
         return "fea_ner"
-    elif emotion in ["remorse", "embarassment"]:
+    elif emotion in ["remorse", "embarrassment"]:
         return "rem_emb"
     elif emotion in ["disappointment", "sadness"]:
         return "dis_sad"
@@ -134,7 +132,7 @@ def map_level2(emotion):
         return "sur_cur_con"
     elif emotion in ["fear", "nervousness"]:
         return "fea_ner"
-    elif emotion in ["remorse", "embarassment"]:
+    elif emotion in ["remorse", "embarrassment"]:
         return "rem_emb"
     elif emotion in ["disappointment", "sadness", "grief"]:
         return "dis_sad_gri"
@@ -166,7 +164,7 @@ def map_level3(emotion):
         return "sur_cur_con"
     elif emotion in ["fear", "nervousness"]:
         return "fea_ner"
-    elif emotion in ["remorse", "embarassment", "disappointment", "sadness", "grief"]:
+    elif emotion in ["remorse", "embarrassment", "disappointment", "sadness", "grief"]:
         return "rem_emb_dis_sad_gri"
     elif emotion in ["disgust", "anger", "annoyance", "disapproval"]:
         return "dis_ang_ann_dis"
@@ -183,7 +181,7 @@ def create_clustered_df(df):
     df (pandas.Dataframe): The input data to transform
     
     Returns:
-    plutchik_df (pandas.Dataframe): The transformed data frame with emotions clustered on different levels
+    clustered_df (pandas.Dataframe): The transformed data frame with emotions clustered on different levels
     '''
     helper0 = df.copy()
     helper1 = df.copy()
@@ -250,3 +248,52 @@ def create_plutchik_df(df):
     plutchik_df = plutchik_df.drop(emotions, axis = 1)
     return plutchik_df
 
+def create_df_all_labels(df):
+    '''
+    Pivots the emotion columns into long format, so there is just one "level0" column. 
+    Adds "level1", "level2", "level3", "level4" emotion columns --> Hierachical clustering of the original emotions and plutchik.
+
+    Paramaters:
+    df (pandas.Dataframe): The input data to transform
+    
+    Returns:
+    clustered_df (pandas.Dataframe): The transformed data frame with emotions clustered on different levels
+    '''
+    helper0 = df.copy()
+    helper1 = df.copy()
+    helper2 = df.copy()
+    helper3 = df.copy()
+    helper4 = df.copy()
+    clustered_df = df.copy()
+
+    # First we write the 'level0' column, which shows the original emotion coded as a string value. 
+    # Mask() is applied on the whole helper dataframe, which is a copy of the original df.
+    for emotion in emotions:
+        helper0 = helper0.mask(helper0[emotion] == 1, emotion)
+        # Now copy the level0 column on the output df:
+        clustered_df['level0'] = helper0['text'] # it doesn't matter, which column, as it mapped the emotions on every column
+
+    # Now we do the same thing for level1 emotions, using the mapfunction defined above.
+    for emotion in emotions:
+        helper1 = helper1.mask(helper1[emotion] == 1, map_level1(emotion))
+        clustered_df['level1'] = helper1['text']
+    
+    # Now we do the same thing for level2 emotions, using the mapfunction defined above.
+    for emotion in emotions:
+        helper2 = helper2.mask(helper2[emotion] == 1, map_level2(emotion))
+        clustered_df['level2'] = helper2['text']
+
+    # Now we do the same thing for level3 emotions, using the mapfunction defined above.
+    for emotion in emotions:
+        helper3 = helper3.mask(helper3[emotion] == 1, map_level3(emotion))
+        clustered_df['level3'] = helper3['text']
+
+    # Now we do the same thing for plutchik emotion, using the mapfunction defined above.
+    for emotion in emotions:
+        helper4 = helper4.mask(helper4[emotion] == 1, map_plutchik(emotion))
+        # Now copy the plutchik column on the output df:
+        clustered_df['plutchik'] = helper4['text'] # it doesn't matter, which column, as it mapped the emotions on every column
+
+    # Now we drop all the original emotion columns:
+    clustered_df = clustered_df.drop(emotions, axis = 1)
+    return clustered_df
