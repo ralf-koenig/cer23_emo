@@ -1,5 +1,6 @@
 # import numpy as np
 # import pandas as pd
+import pandas as pd
 
 # 27 + 1 emotions from paper on "GoEmotions"
 emotions = ['admiration', 'amusement', 'anger', 'annoyance', 'approval', 'caring', 'confusion', 'curiosity', 'desire',
@@ -178,7 +179,7 @@ def map_level3(emotion):
         return emotion  # only "neutral" remains
 
 
-def create_clustered_df(df):
+def create_pivoted_df(df):
     """
     Pivots the emotion columns into long format, so there is just one "level0" column.
     Adds "level1", "level2" and "level3" emotion columns --> hierarchical clustering of the original emotions.
@@ -192,14 +193,57 @@ def create_clustered_df(df):
     Returns:
     clustered_df (pandas.Dataframe): The transformed data frame with emotions clustered on different levels
     """
-    clustered_df = df.copy()
-    clustered_df['level0'] = clustered_df[emotions].idxmax(axis=1)
+    pivoted_df = df.copy()
+    pivoted_df['level0'] = pivoted_df[emotions].idxmax(axis=1)
     # Now we drop all the original emotion columns as we do not need them any longer:
-    clustered_df = clustered_df.drop(emotions, axis=1)
+    pivoted_df = pivoted_df.drop(emotions, axis=1)
+    return pivoted_df
 
-    # now map the other columns
+
+def add_hierarchical_levels(clustered_df):
+    """
+    Add the hierarchical columns
+
+    :param clustered_df:
+    :return:
+    """
     clustered_df['level1'] = clustered_df.level0.apply(map_level1)
     clustered_df['level2'] = clustered_df.level0.apply(map_level2)
     clustered_df['level3'] = clustered_df.level0.apply(map_level3)
     clustered_df['plutchik'] = clustered_df.level0.apply(map_plutchik)
     return clustered_df
+
+
+def majority_voted_df(df):
+    """
+    Do a majority vote on the emotions for each set of rows in the dataframe with the same id.
+    Keep only ids which have a clear majority vote result i.e. ONE most common emotion.
+    :param df:
+    :return:
+    """
+    result_list = []
+    df_reduced = df[['id', 'level0']]
+    df_groups_ser = df_reduced.groupby('id')['level0'].apply(list)
+    for text_id, emotions_list in df_groups_ser.items():
+        action, item1 = majority_vote(emotions_list)
+        if action == 'keep':
+            result_list.append([text_id, item1])
+    return pd.DataFrame(result_list, columns=['id', 'level0'])
+
+
+def majority_vote(emotion_list: list):
+    """
+    Do a strict majority voting on a list of emotions.
+    :param emotion_list:
+    :return:
+    """
+    action = 'keep'
+    item1 = max(set(emotion_list), key=emotion_list.count)
+    freq1 = emotion_list.count(item1)
+    emotion_list = list(filter(lambda a: a != item1, emotion_list))
+    if emotion_list:
+        item2 = max(set(emotion_list), key=emotion_list.count)
+        freq2 = emotion_list.count(item2)
+        if freq1 == freq2:
+            action = "delete"
+    return action, item1
