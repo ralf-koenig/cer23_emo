@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 def get_bert(dataset, level, bert, models_dir, results_dir):
     '''
-    Returns the results for a chosen BERT-model.
+    Returns the dataset, results and tokenized_testing_data for a chosen BERT-model.
     
     Parameters: 
     dataset (dataframe): input data
@@ -106,15 +106,15 @@ def get_bert(dataset, level, bert, models_dir, results_dir):
     training_args = TrainingArguments(
         output_dir= models_dir+"model_"+level,
         learning_rate=2e-5,  # standard
-        per_device_train_batch_size=16, # size in which chunks are entered into the network, on how many data parallel weights are trained
-        per_device_eval_batch_size=16,
-        num_train_epochs=10,
+        per_device_train_batch_size=12, # size in which chunks are entered into the network, on how many data parallel weights are trained
+        per_device_eval_batch_size=12,
+        num_train_epochs=5,
         weight_decay=0.01,
         evaluation_strategy="epoch", # save model per epoch
         save_strategy="epoch",
         load_best_model_at_end=True,
         push_to_hub=False #,
-        #label_names=["level0"],
+        #label_names=[level],
     )
 
     # IMPORTANT: Set: Model, dataset, ... , define learning process, metrics, ...
