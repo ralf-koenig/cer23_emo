@@ -19,3 +19,4 @@ dependencies:
   - pytorch
   - plotnine
   - tqdm
+  - sentencepiece
