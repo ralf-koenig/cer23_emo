@@ -113,7 +113,7 @@ def map_level1(emotion):
     elif emotion in ["anger", "annoyance"]:
         return "ang_ann"
     else:
-        return emotion  # amusement, caring, disapproval, disgust, grief, love, surprise, neutral
+        return emotion  # amusement, love, caring, surprise, grief, disgust, disapproval, neutral
 
 
 def map_level2(emotion):
