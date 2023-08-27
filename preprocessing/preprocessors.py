@@ -181,13 +181,10 @@ def map_level3(emotion):
 def create_pivoted_df(df):
     """
     Pivots the emotion columns into long format, so there is just one "level0" column.
-    Adds "level1", "level2" and "level3" emotion columns --> hierarchical clustering of the original emotions.
-    according to GoEmotions Paper
-
-    Adds "Plutchik" emotion column with a mapping of 27+1 emotions to Plutchik emotions
 
     Parameters:
-    df (pandas.Dataframe): The input data to transform
+    df (pandas.Dataframe): The input data to transform. Needs to be ONE-hot encoded on the emotions
+    columns, so that this step is lossless and predictable for Multi-class classification.
 
     Returns:
     clustered_df (pandas.Dataframe): The transformed data frame with emotions clustered on different levels
@@ -201,7 +198,10 @@ def create_pivoted_df(df):
 
 def add_hierarchical_levels(clustered_df):
     """
-    Add the hierarchical columns
+    Adds "level1", "level2" and "level3" emotion columns --> hierarchical clustering of the original emotions.
+    according to GoEmotions Paper
+
+    Adds "Plutchik" emotion column with a mapping of 27+1 emotions to Plutchik emotions
 
     :param clustered_df:
     :return:
@@ -221,8 +221,11 @@ def majority_voted_df(df):
     :return:
     """
     result_list = []
+    # only keep columns: id and level0, this suffices for the majority vote
     df_reduced = df[['id', 'level0']]
+    # group by id, list the level0 emotions
     df_groups_ser = df_reduced.groupby('id')['level0'].apply(list)
+    # now do majority vote using another function
     for text_id, emotions_list in df_groups_ser.items():
         action, item1 = majority_vote(emotions_list)
         if action == 'keep':
@@ -233,106 +236,125 @@ def majority_voted_df(df):
 def majority_vote(emotion_list: list):
     """
     Do a strict majority voting on a list of emotions.
+    Keep if one item overrules the others. Delete if two most frequent items are equally frequent.
     :param emotion_list:
-    :return:
+    :return: action ("keep" or "delete") and majority voted item
     """
     action = 'keep'
+    # find most frequent entry and its frequency
     item1 = max(set(emotion_list), key=emotion_list.count)
     freq1 = emotion_list.count(item1)
+    # only keep the rest
     emotion_list = list(filter(lambda a: a != item1, emotion_list))
+    # if something remains
     if emotion_list:
+        # find 2nd most frequent entry and its frequency
         item2 = max(set(emotion_list), key=emotion_list.count)
         freq2 = emotion_list.count(item2)
+        # if they match in frequency: they rule other out => delete
         if freq1 == freq2:
             action = "delete"
     return action, item1
 
-def backtranslate(text, src_tokenizer, src_model, tgt_tokenizer, tgt_model):
+
+def back_translate(text, src_tokenizer, src_model, tgt_tokenizer, tgt_model):
     # Translate source text to the target language
     src_input = src_tokenizer(text, return_tensors="pt", padding=True, truncation=True)
     tgt_translation = src_model.generate(**src_input)
     tgt_translation_text = tgt_tokenizer.decode(tgt_translation[0], skip_special_tokens=True)
-        
+
     # Translate target translation back to the source language
     tgt_input = tgt_tokenizer(tgt_translation_text, return_tensors="pt", padding=True, truncation=True)
-    src_backtranslation = tgt_model.generate(**tgt_input)
-    src_backtranslation_text = src_tokenizer.decode(src_backtranslation[0], skip_special_tokens=True)
-        
-    return src_backtranslation_text #, tgt_translation_text
+    src_back_translation = tgt_model.generate(**tgt_input)
+    src_back_translation_text = src_tokenizer.decode(src_back_translation[0], skip_special_tokens=True)
 
-def bracktranslate_emo(df, language, src_model_name, tgt_model_name):
+    return src_back_translation_text  # , tgt_translation_text
 
+
+def back_translate_emo(df, language, src_model_name, tgt_model_name):
     src_tokenizer = AutoTokenizer.from_pretrained(src_model_name)
     src_model = AutoModelForSeq2SeqLM.from_pretrained(src_model_name)
 
     tgt_tokenizer = AutoTokenizer.from_pretrained(tgt_model_name)
     tgt_model = AutoModelForSeq2SeqLM.from_pretrained(tgt_model_name)
 
-    # Apply backtranslation to the 'text' column
-    df['text'] = df['text'].apply(lambda x: backtranslate(x, src_tokenizer, src_model, tgt_tokenizer, tgt_model))
+    # Apply back translation to the 'text' column
+    df['text'] = df['text'].apply(lambda x: back_translate(x, src_tokenizer, src_model, tgt_tokenizer, tgt_model))
 
-    #remove ▁ from subword tokenization
+    # remove ▁ from subword tokenization
     df['text'] = df['text'].str.replace("▁", " ")
 
-    # Add "_fr" to the id column for backtranslated rows
+    # Add "_fr" to the id column for back translated rows
     df['id'] = df['id'] + language
-    
+
     return df
 
-def backtranslated_df(df):
+
+def back_translated_df(df):
     """
-    create a DataFrame with backtranslated data
+    create a DataFrame with back translated data
     """
 
     # two pre-trained translation models: source language and target language
-    src_model_name = ["Helsinki-NLP/opus-mt-en-fr", "Helsinki-NLP/opus-mt-en-de", "Helsinki-NLP/opus-mt-en-es", "Helsinki-NLP/opus-mt-en-da", "Helsinki-NLP/opus-mt-en-sv", "Helsinki-NLP/opus-mt-en-ru", "Helsinki-NLP/opus-mt-en-id", "Helsinki-NLP/opus-mt-en-nl", "Helsinki-NLP/opus-mt-en-cs"]
-    tgt_model_name = ["Helsinki-NLP/opus-mt-fr-en", "Helsinki-NLP/opus-mt-de-en", "Helsinki-NLP/opus-mt-es-en", "Helsinki-NLP/opus-mt-da-en", "Helsinki-NLP/opus-mt-sv-en", "Helsinki-NLP/opus-mt-ru-en", "Helsinki-NLP/opus-mt-id-en", "Helsinki-NLP/opus-mt-nl-en", "Helsinki-NLP/opus-mt-cs-en"]
+    src_model_name = ["Helsinki-NLP/opus-mt-en-fr", "Helsinki-NLP/opus-mt-en-de", "Helsinki-NLP/opus-mt-en-es",
+                      "Helsinki-NLP/opus-mt-en-da", "Helsinki-NLP/opus-mt-en-sv", "Helsinki-NLP/opus-mt-en-ru",
+                      "Helsinki-NLP/opus-mt-en-id", "Helsinki-NLP/opus-mt-en-nl", "Helsinki-NLP/opus-mt-en-cs"]
+    tgt_model_name = ["Helsinki-NLP/opus-mt-fr-en", "Helsinki-NLP/opus-mt-de-en", "Helsinki-NLP/opus-mt-es-en",
+                      "Helsinki-NLP/opus-mt-da-en", "Helsinki-NLP/opus-mt-sv-en", "Helsinki-NLP/opus-mt-ru-en",
+                      "Helsinki-NLP/opus-mt-id-en", "Helsinki-NLP/opus-mt-nl-en", "Helsinki-NLP/opus-mt-cs-en"]
     language_short = ["_fr", "_de", "_es", "_da", "_sv", "_ru", "_id", "_nl", "_cs"]
 
-    # Create Backtranslation and concatenate DataFrames
-    embarrassment_fr = bracktranslate_emo(df[df['level0'] == 'embarrassment'], language_short[0], src_model_name[0], tgt_model_name[0])
+    # Create back translation and concatenate DataFrames
+    embarrassment_fr = back_translate_emo(df[df['level0'] == 'embarrassment'], language_short[0], src_model_name[0],
+                                          tgt_model_name[0])
     result_df = pd.concat([df, embarrassment_fr], ignore_index=True)
-    relief_fr = bracktranslate_emo(df[df['level0'] == 'relief'], language_short[0], src_model_name[0], tgt_model_name[0])
+    relief_fr = back_translate_emo(df[df['level0'] == 'relief'], language_short[0], src_model_name[0],
+                                   tgt_model_name[0])
     result_df = pd.concat([result_df, relief_fr], ignore_index=True)
-    relief_de = bracktranslate_emo(df[df['level0'] == 'relief'], language_short[1], src_model_name[1], tgt_model_name[1])
+    relief_de = back_translate_emo(df[df['level0'] == 'relief'], language_short[1], src_model_name[1],
+                                   tgt_model_name[1])
     result_df = pd.concat([result_df, relief_de], ignore_index=True)
-    relief_es = bracktranslate_emo(df[df['level0'] == 'relief'], language_short[2], src_model_name[2], tgt_model_name[2])
+    relief_es = back_translate_emo(df[df['level0'] == 'relief'], language_short[2], src_model_name[2],
+                                   tgt_model_name[2])
     result_df = pd.concat([result_df, relief_es], ignore_index=True)
-    nervousness_fr = bracktranslate_emo(df[df['level0'] == 'nervousness'], language_short[0], src_model_name[0], tgt_model_name[0])
+    nervousness_fr = back_translate_emo(df[df['level0'] == 'nervousness'], language_short[0], src_model_name[0],
+                                        tgt_model_name[0])
     result_df = pd.concat([result_df, nervousness_fr], ignore_index=True)
-    nervousness_de = bracktranslate_emo(df[df['level0'] == 'nervousness'], language_short[1], src_model_name[1], tgt_model_name[1])
+    nervousness_de = back_translate_emo(df[df['level0'] == 'nervousness'], language_short[1], src_model_name[1],
+                                        tgt_model_name[1])
     result_df = pd.concat([result_df, nervousness_de], ignore_index=True)
-    nervousness_es = bracktranslate_emo(df[df['level0'] == 'nervousness'], language_short[2], src_model_name[2], tgt_model_name[2])
+    nervousness_es = back_translate_emo(df[df['level0'] == 'nervousness'], language_short[2], src_model_name[2],
+                                        tgt_model_name[2])
     result_df = pd.concat([result_df, nervousness_es], ignore_index=True)
-    pride_fr = bracktranslate_emo(df[df['level0'] == 'pride'], language_short[0], src_model_name[0], tgt_model_name[0])
+    pride_fr = back_translate_emo(df[df['level0'] == 'pride'], language_short[0], src_model_name[0], tgt_model_name[0])
     result_df = pd.concat([result_df, pride_fr], ignore_index=True)
-    pride_de = bracktranslate_emo(df[df['level0'] == 'pride'], language_short[1], src_model_name[1], tgt_model_name[1])
+    pride_de = back_translate_emo(df[df['level0'] == 'pride'], language_short[1], src_model_name[1], tgt_model_name[1])
     result_df = pd.concat([result_df, pride_de], ignore_index=True)
-    pride_es = bracktranslate_emo(df[df['level0'] == 'pride'], language_short[2], src_model_name[2], tgt_model_name[2])
+    pride_es = back_translate_emo(df[df['level0'] == 'pride'], language_short[2], src_model_name[2], tgt_model_name[2])
     result_df = pd.concat([result_df, pride_es], ignore_index=True)
-    pride_da = bracktranslate_emo(df[df['level0'] == 'pride'], language_short[3], src_model_name[3], tgt_model_name[3])
+    pride_da = back_translate_emo(df[df['level0'] == 'pride'], language_short[3], src_model_name[3], tgt_model_name[3])
     result_df = pd.concat([result_df, pride_da], ignore_index=True)
-    pride_sv = bracktranslate_emo(df[df['level0'] == 'pride'], language_short[4], src_model_name[4], tgt_model_name[4])
+    pride_sv = back_translate_emo(df[df['level0'] == 'pride'], language_short[4], src_model_name[4], tgt_model_name[4])
     result_df = pd.concat([result_df, pride_sv], ignore_index=True)
-    grief_fr = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[0], src_model_name[0], tgt_model_name[0])
+    grief_fr = back_translate_emo(df[df['level0'] == 'grief'], language_short[0], src_model_name[0], tgt_model_name[0])
     result_df = pd.concat([result_df, grief_fr], ignore_index=True)
-    grief_de = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[1], src_model_name[1], tgt_model_name[1])
+    grief_de = back_translate_emo(df[df['level0'] == 'grief'], language_short[1], src_model_name[1], tgt_model_name[1])
     result_df = pd.concat([result_df, grief_de], ignore_index=True)
-    grief_es = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[2], src_model_name[2], tgt_model_name[2])
+    grief_es = back_translate_emo(df[df['level0'] == 'grief'], language_short[2], src_model_name[2], tgt_model_name[2])
     result_df = pd.concat([result_df, grief_es], ignore_index=True)
-    grief_da = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[3], src_model_name[3], tgt_model_name[3])
+    grief_da = back_translate_emo(df[df['level0'] == 'grief'], language_short[3], src_model_name[3], tgt_model_name[3])
     result_df = pd.concat([result_df, grief_da], ignore_index=True)
-    grief_sv = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[4], src_model_name[4], tgt_model_name[4])
+    grief_sv = back_translate_emo(df[df['level0'] == 'grief'], language_short[4], src_model_name[4], tgt_model_name[4])
     result_df = pd.concat([result_df, grief_sv], ignore_index=True)
-    grief_ru = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[5], src_model_name[5], tgt_model_name[5])
+    grief_ru = back_translate_emo(df[df['level0'] == 'grief'], language_short[5], src_model_name[5], tgt_model_name[5])
     result_df = pd.concat([result_df, grief_ru], ignore_index=True)
-    grief_id = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[6], src_model_name[6], tgt_model_name[6])
+    grief_id = back_translate_emo(df[df['level0'] == 'grief'], language_short[6], src_model_name[6], tgt_model_name[6])
     result_df = pd.concat([result_df, grief_id], ignore_index=True)
-    grief_nl = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[7], src_model_name[7], tgt_model_name[7])
+    grief_nl = back_translate_emo(df[df['level0'] == 'grief'], language_short[7], src_model_name[7], tgt_model_name[7])
     result_df = pd.concat([result_df, grief_nl], ignore_index=True)
-    grief_cs = bracktranslate_emo(df[df['level0'] == 'grief'], language_short[8], src_model_name[8], tgt_model_name[8])
+    grief_cs = back_translate_emo(df[df['level0'] == 'grief'], language_short[8], src_model_name[8], tgt_model_name[8])
     result_df = pd.concat([result_df, grief_cs], ignore_index=True)
 
-    result_df.to_csv('../data/backtranslated_df.csv', index=False)  # save dataframe as csv
+    result_df.to_csv('../data/back_translated_df.csv', index=False)  # save dataframe as csv
 
-    return result_df 
+    return result_df
