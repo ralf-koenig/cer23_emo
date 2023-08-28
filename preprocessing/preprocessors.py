@@ -184,7 +184,7 @@ def create_pivoted_df(df):
 
     Parameters:
     df (pandas.Dataframe): The input data to transform. Needs to be ONE-hot encoded on the emotions
-    columns, so that this step is lossless and predictable for Multi-class classification.
+    columns, so that this step is lossless and predictable for Multi-class classification
 
     Returns:
     clustered_df (pandas.Dataframe): The transformed data frame with emotions clustered on different levels
@@ -198,13 +198,16 @@ def create_pivoted_df(df):
 
 def add_hierarchical_levels(clustered_df):
     """
-    Adds "level1", "level2" and "level3" emotion columns --> hierarchical clustering of the original emotions.
-    according to GoEmotions Paper
+    Adds "level1", "level2", and "level3" emotion columns through hierarchical clustering of the original emotions
+    according to the GoEmotions Paper.
 
-    Adds "Plutchik" emotion column with a mapping of 27+1 emotions to Plutchik emotions
+    Also adds a "Plutchik" emotion column with a mapping of 27+1 emotions to Plutchik emotions.
 
-    :param clustered_df:
-    :return:
+    Parameters:
+    clustered_df (pandas.Dataframe): DataFrame containing emotions and other data
+
+    Returns: 
+    clustered_df (pandas.Dataframe): DataFrame with added hierarchical and Plutchik emotion columns
     """
     clustered_df['level1'] = clustered_df.level0.apply(map_level1)
     clustered_df['level2'] = clustered_df.level0.apply(map_level2)
@@ -215,10 +218,14 @@ def add_hierarchical_levels(clustered_df):
 
 def majority_voted_df(df):
     """
-    Do a majority vote on the emotions for each set of rows in the dataframe with the same id.
-    Keep only ids which have a clear majority vote result i.e. ONE most common emotion.
-    :param df:
-    :return:
+    Performs majority voting on emotions for each set of rows in the dataframe with the same id.
+    Keeps only ids which have a clear majority vote result, i.e. a single most common emotion.
+
+    Parameters: 
+    df (pandas.DataFrame): DataFrame containing emotions and other data
+
+    Returns: 
+    DataFrame with majority voted emotions
     """
     result_list = []
     # only keep columns: id and level0, this suffices for the majority vote
@@ -235,10 +242,14 @@ def majority_voted_df(df):
 
 def majority_vote(emotion_list: list):
     """
-    Do a strict majority voting on a list of emotions.
-    Keep if one item overrules the others. Delete if two most frequent items are equally frequent.
-    :param emotion_list:
-    :return: action ("keep" or "delete") and majority voted item
+    Performs strict majority voting on a list of emotions.
+    Keeps an item if it overrules the others; deletes if two most frequent items are equally frequent.
+
+    Parameters:
+    emotion_list (list): List of emotions to perform majority voting on
+
+    Returns: 
+    Tuple containing action ("keep" or "delete") and the majority voted item
     """
     action = 'keep'
     # find most frequent entry and its frequency
@@ -258,6 +269,21 @@ def majority_vote(emotion_list: list):
 
 
 def back_translate(text, src_tokenizer, src_model, tgt_tokenizer, tgt_model):
+    """
+    Translates source text to the target language using machine translation and then translates it 
+    back to the source language to create a back-translated version of the text.
+
+    Parameters:
+    text (string): Source text to be back-translated
+    src_tokenizer: Tokenizer for the source language
+    src_model: Machine translation model for the source language
+    tgt_tokenizer: Tokenizer for the target language
+    tgt_model: Machine translation model for the target language
+
+    Returns: 
+    backtranslated version of the input text
+    """
+
     # Translate source text to the target language
     src_input = src_tokenizer(text, return_tensors="pt", padding=True, truncation=True)
     tgt_translation = src_model.generate(**src_input)
@@ -272,6 +298,19 @@ def back_translate(text, src_tokenizer, src_model, tgt_tokenizer, tgt_model):
 
 
 def back_translate_emo(df, language, src_model_name, tgt_model_name):
+    """
+    Performs backtranslation on the 'text' column of the input DataFrame using given translation models.
+
+    Parameters:
+    df (pandas.DataFrame): DataFrame containing 'text' column to be back-translated
+    language (string): Short language code for the target language
+    src_model_name (string): Pre-trained translation model for the source language
+    tgt_model_name (string): Pre-trained translation model for the target language
+
+    Returns: 
+    DataFrame with back-translated 'text' column and modified 'id' column
+    """
+
     src_tokenizer = AutoTokenizer.from_pretrained(src_model_name)
     src_model = AutoModelForSeq2SeqLM.from_pretrained(src_model_name)
 
@@ -292,7 +331,13 @@ def back_translate_emo(df, language, src_model_name, tgt_model_name):
 
 def back_translated_df(df):
     """
-    create a DataFrame with back translated data
+    Creates a DataFrame with back-translated data by applying back translation to different emotions and languages.
+
+    Parameters:
+    df (pandas.DataFrame): DataFrame containing original data for backtranslation
+
+    Returns: 
+    result_df (pandas.DataFrame): DataFrame with back-translated data
     """
 
     # two pre-trained translation models: source language and target language

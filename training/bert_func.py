@@ -23,16 +23,16 @@ def get_bert(dataset, level, bert, models_dir, results_dir):
     Returns the results for a chosen BERT-model.
     
     Parameters: 
-    dataset (dataframe): input data
+    dataset (dataframe): Input data containing the used text and emotion labels
     level (string): cluster level of emotions that should be analyzed
     bert (string): chosen BERT-model for training
     models_dir (string): directory where the models are saved
     results_dir (string): directory where the results are saved
     
     Returns:
-    dataset (dataframe): input data with mapped level
-    results (list): model results
-    tokenized_testing_data (Dataset): text in tensor form
+    dataset (dataframe): input data with mapped emotion labels
+    results (list): Model classification results for each text
+    tokenized_testing_data (Dataset): tokenized text data in tensor form
     '''
     
     if level == "level0":
@@ -145,6 +145,21 @@ def get_bert(dataset, level, bert, models_dir, results_dir):
 
 
 def load_bert(dataset, level, bert, models_dir, results_dir):
+    """
+    Loads a pre-trained BERT model, applies it to the provided dataset, and returns the classification results.
+
+    Parameters:
+    dataset (dataframe): Input data containing text and emotion labels
+    level (string): Cluster level of emotions that should be analyzed
+    bert (string): Chosen BERT-model for inference
+    models_dir (string): Directory where the trained models are saved
+    results_dir (string): Directory where the model results are saved
+
+    Returns:
+    dataset (dataframe): Input data with mapped emotion labels
+    results (list): Model classification results for each text
+    tokenized_testing_data (Dataset): Tokenized text data in tensor form
+    """
 
     # Replace 'models_dir' and 'level' with your actual paths and level
     model_path = models_dir + "model_" + level
